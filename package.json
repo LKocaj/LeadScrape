@@ -4,13 +4,23 @@
   "description": "Enterprise lead scraper for OnCall Automation",
   "type": "module",
   "main": "dist/index.js",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
     "leadscrape": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
+    "build:web": "npm run build -w packages/web",
+    "build:api": "npm run build -w packages/api",
+    "build:all": "npm run build && npm run build:api && npm run build:web",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev -w packages/api",
+    "dev:web": "npm run dev -w packages/web",
     "start": "node dist/index.js",
+    "start:api": "npm run start -w packages/api",
     "cli": "tsx src/cli.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
@@ -49,6 +59,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "concurrently": "^9.1.2",
     "@types/opossum": "^8.1.7",
     "@types/sql.js": "^1.4.9",
     "@types/string-similarity": "^4.0.2",
