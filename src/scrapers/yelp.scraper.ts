@@ -72,7 +72,7 @@ interface YelpLocation {
 /**
  * Map trade to Yelp categories
  */
-const TRADE_TO_CATEGORIES: Record<Trade, string[]> = {
+const TRADE_TO_CATEGORIES: Partial<Record<Trade, string[]>> = {
   [Trade.HVAC]: ['hvac', 'heating', 'airconditioning', 'hvacr'],
   [Trade.PLUMBING]: ['plumbing', 'waterheaterinstallation'],
   [Trade.ELECTRICAL]: ['electricians', 'lighting', 'electricalrepair'],

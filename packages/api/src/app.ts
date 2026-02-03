@@ -7,8 +7,11 @@ import { leadsRouter } from './routes/leads.routes.js';
 import { statsRouter } from './routes/stats.routes.js';
 import { scrapeRouter } from './routes/scrape.routes.js';
 import { exportRouter } from './routes/export.routes.js';
+import { importRouter } from './routes/import.routes.js';
+import { analyticsRouter } from './routes/analytics.routes.js';
 import { enumsRouter } from './routes/enums.routes.js';
 import { oncallRouter } from './routes/oncall.routes.js';
+import { enrichmentRouter } from './routes/enrichment.routes.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,7 +28,10 @@ export function createApp() {
   app.use('/api/stats', statsRouter);
   app.use('/api/scrape', scrapeRouter);
   app.use('/api/export', exportRouter);
+  app.use('/api/import', importRouter);
+  app.use('/api/analytics', analyticsRouter);
   app.use('/api/enums', enumsRouter);
+  app.use('/api/enrichment', enrichmentRouter);
   app.use('/api', oncallRouter);
 
   // Serve React build in production

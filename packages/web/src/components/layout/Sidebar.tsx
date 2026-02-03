@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Search, Download } from 'lucide-react';
+import { LayoutDashboard, Users, Search, Upload, Download, BarChart3 } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/scrape', icon: Search, label: 'Scrape' },
+  { to: '/import', icon: Upload, label: 'Import' },
   { to: '/export', icon: Download, label: 'Export' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 
 export function Sidebar() {

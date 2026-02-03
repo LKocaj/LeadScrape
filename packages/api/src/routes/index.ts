@@ -4,3 +4,4 @@ export { scrapeRouter } from './scrape.routes.js';
 export { exportRouter } from './export.routes.js';
 export { enumsRouter } from './enums.routes.js';
 export { oncallRouter } from './oncall.routes.js';
+export { enrichmentRouter } from './enrichment.routes.js';

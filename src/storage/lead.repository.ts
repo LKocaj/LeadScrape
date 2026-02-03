@@ -200,6 +200,15 @@ export function findLeads(filters: LeadFilters = {}): Lead[] {
     conditions.push(filters.hasPhone ? 'phone IS NOT NULL' : 'phone IS NULL');
   }
 
+  if (filters.hasWebsite !== undefined) {
+    conditions.push(filters.hasWebsite ? "website IS NOT NULL AND website != ''" : "(website IS NULL OR website = '')");
+  }
+
+  // Needs enrichment = has website but no email
+  if (filters.needsEnrichment !== undefined && filters.needsEnrichment) {
+    conditions.push("website IS NOT NULL AND website != '' AND (email IS NULL OR email = '')");
+  }
+
   if (filters.minConfidence !== undefined) {
     conditions.push('confidence >= ?');
     params.push(filters.minConfidence);
@@ -397,4 +406,213 @@ export function getTotalLeadCount(): number {
  */
 export async function persistChanges(): Promise<void> {
   await saveDatabase();
+}
+
+// ============================================================================
+// Analytics Queries
+// ============================================================================
+
+/**
+ * Get leads grouped by date for timeline charts
+ */
+export function getLeadsByDate(
+  startDate: Date,
+  endDate: Date,
+  groupBy: 'day' | 'week' | 'month' = 'day'
+): { date: string; count: number }[] {
+  let dateFormat: string;
+  switch (groupBy) {
+    case 'week':
+      dateFormat = '%Y-W%W';
+      break;
+    case 'month':
+      dateFormat = '%Y-%m';
+      break;
+    default:
+      dateFormat = '%Y-%m-%d';
+  }
+
+  const rows = query<{ date: string; count: number }>(
+    `SELECT strftime('${dateFormat}', scraped_at) as date, COUNT(*) as count
+     FROM leads
+     WHERE scraped_at >= ? AND scraped_at <= ?
+     GROUP BY strftime('${dateFormat}', scraped_at)
+     ORDER BY date ASC`,
+    [startDate.toISOString(), endDate.toISOString()]
+  );
+
+  return rows;
+}
+
+/**
+ * Get data quality metrics
+ */
+export function getDataQualityMetrics(): {
+  totalLeads: number;
+  withEmail: number;
+  withPhone: number;
+  withAddress: number;
+  withWebsite: number;
+  duplicateCount: number;
+  enrichedCount: number;
+  verifiedCount: number;
+  averageConfidence: number;
+} {
+  const rows = query<{
+    total: number;
+    with_email: number;
+    with_phone: number;
+    with_address: number;
+    with_website: number;
+    duplicate_count: number;
+    enriched_count: number;
+    verified_count: number;
+    avg_confidence: number;
+  }>(
+    `SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email,
+      SUM(CASE WHEN phone IS NOT NULL AND phone != '' THEN 1 ELSE 0 END) as with_phone,
+      SUM(CASE WHEN address IS NOT NULL AND address != '' THEN 1 ELSE 0 END) as with_address,
+      SUM(CASE WHEN website IS NOT NULL AND website != '' THEN 1 ELSE 0 END) as with_website,
+      SUM(CASE WHEN status = 'Duplicate' THEN 1 ELSE 0 END) as duplicate_count,
+      SUM(CASE WHEN status = 'Enriched' THEN 1 ELSE 0 END) as enriched_count,
+      SUM(CASE WHEN status = 'Verified' THEN 1 ELSE 0 END) as verified_count,
+      AVG(confidence) as avg_confidence
+    FROM leads`
+  );
+
+  const result = rows[0];
+  return {
+    totalLeads: result?.total ?? 0,
+    withEmail: result?.with_email ?? 0,
+    withPhone: result?.with_phone ?? 0,
+    withAddress: result?.with_address ?? 0,
+    withWebsite: result?.with_website ?? 0,
+    duplicateCount: result?.duplicate_count ?? 0,
+    enrichedCount: result?.enriched_count ?? 0,
+    verifiedCount: result?.verified_count ?? 0,
+    averageConfidence: result?.avg_confidence ?? 0,
+  };
+}
+
+/**
+ * Get source comparison metrics
+ */
+export function getSourceComparison(): {
+  source: string;
+  total: number;
+  withEmail: number;
+  withPhone: number;
+  withWebsite: number;
+  averageRating: number;
+  duplicateCount: number;
+}[] {
+  const rows = query<{
+    source: string;
+    total: number;
+    with_email: number;
+    with_phone: number;
+    with_website: number;
+    avg_rating: number;
+    duplicate_count: number;
+  }>(
+    `SELECT
+      source,
+      COUNT(*) as total,
+      SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email,
+      SUM(CASE WHEN phone IS NOT NULL AND phone != '' THEN 1 ELSE 0 END) as with_phone,
+      SUM(CASE WHEN website IS NOT NULL AND website != '' THEN 1 ELSE 0 END) as with_website,
+      AVG(rating) as avg_rating,
+      SUM(CASE WHEN status = 'Duplicate' THEN 1 ELSE 0 END) as duplicate_count
+    FROM leads
+    GROUP BY source
+    ORDER BY total DESC`
+  );
+
+  return rows.map(row => ({
+    source: row.source,
+    total: row.total,
+    withEmail: row.with_email,
+    withPhone: row.with_phone,
+    withWebsite: row.with_website,
+    averageRating: row.avg_rating ?? 0,
+    duplicateCount: row.duplicate_count,
+  }));
+}
+
+/**
+ * Get trend data comparing current period to previous period
+ */
+export function getTrendData(
+  periodDays: number = 7
+): {
+  currentPeriod: number;
+  previousPeriod: number;
+  changePercent: number;
+  currentWithEmail: number;
+  previousWithEmail: number;
+  emailChangePercent: number;
+} {
+  const now = new Date();
+  const currentStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+  const previousStart = new Date(currentStart.getTime() - periodDays * 24 * 60 * 60 * 1000);
+
+  const rows = query<{
+    period: string;
+    count: number;
+    with_email: number;
+  }>(
+    `SELECT
+      CASE
+        WHEN scraped_at >= ? THEN 'current'
+        WHEN scraped_at >= ? AND scraped_at < ? THEN 'previous'
+      END as period,
+      COUNT(*) as count,
+      SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email
+    FROM leads
+    WHERE scraped_at >= ?
+    GROUP BY period`,
+    [
+      currentStart.toISOString(),
+      previousStart.toISOString(),
+      currentStart.toISOString(),
+      previousStart.toISOString(),
+    ]
+  );
+
+  const current = rows.find(r => r.period === 'current');
+  const previous = rows.find(r => r.period === 'previous');
+
+  const currentPeriod = current?.count ?? 0;
+  const previousPeriod = previous?.count ?? 0;
+  const currentWithEmail = current?.with_email ?? 0;
+  const previousWithEmail = previous?.with_email ?? 0;
+
+  const changePercent = previousPeriod > 0
+    ? ((currentPeriod - previousPeriod) / previousPeriod) * 100
+    : currentPeriod > 0 ? 100 : 0;
+
+  const emailChangePercent = previousWithEmail > 0
+    ? ((currentWithEmail - previousWithEmail) / previousWithEmail) * 100
+    : currentWithEmail > 0 ? 100 : 0;
+
+  return {
+    currentPeriod,
+    previousPeriod,
+    changePercent,
+    currentWithEmail,
+    previousWithEmail,
+    emailChangePercent,
+  };
+}
+
+/**
+ * Get recent activity (leads per day for last N days)
+ */
+export function getRecentActivity(days: number = 30): { date: string; count: number }[] {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return getLeadsByDate(startDate, new Date(), 'day');
 }

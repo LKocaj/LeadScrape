@@ -59,7 +59,7 @@ interface AddressComponent {
 /**
  * Search terms for each trade
  */
-const TRADE_SEARCH_TERMS: Record<Trade, string[]> = {
+const TRADE_SEARCH_TERMS: Partial<Record<Trade, string[]>> = {
   [Trade.HVAC]: [
     'HVAC contractor',
     'heating and cooling',

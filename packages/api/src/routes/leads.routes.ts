@@ -29,6 +29,12 @@ leadsRouter.get('/', (req, res) => {
   if (req.query.hasPhone === 'true') {
     filters.hasPhone = true;
   }
+  if (req.query.hasWebsite === 'true') {
+    filters.hasWebsite = true;
+  }
+  if (req.query.needsEnrichment === 'true') {
+    filters.needsEnrichment = true;
+  }
   if (req.query.limit) {
     filters.limit = parseInt(req.query.limit as string, 10);
   }

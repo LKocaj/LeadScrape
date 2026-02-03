@@ -9,6 +9,14 @@ import type {
   LeadSource,
   Trade,
   LeadStatus,
+  ImportUploadResult,
+  ImportFieldsResponse,
+  ImportPreviewResult,
+  ImportConfig,
+  ImportResult,
+  AnalyticsOverview,
+  TimelineData,
+  SourceMetrics,
 } from '../types';
 
 const API_BASE = '/api';
@@ -44,7 +52,7 @@ function buildQueryString(params: Record<string, string | number | boolean | und
 export const api = {
   // Leads
   async getLeads(filters?: LeadFilters): Promise<ApiResponse<Lead[]>> {
-    const qs = buildQueryString(filters || {});
+    const qs = buildQueryString(filters as Record<string, string | number | boolean | undefined> || {});
     return request(`/leads${qs}`);
   },
 
@@ -105,7 +113,7 @@ export const api = {
   },
 
   async getExportPreview(filters?: LeadFilters): Promise<ApiResponse<{ count: number }>> {
-    const qs = buildQueryString(filters || {});
+    const qs = buildQueryString(filters as Record<string, string | number | boolean | undefined> || {});
     return request(`/export/preview${qs}`);
   },
 
@@ -136,6 +144,142 @@ export const api = {
     return request('/oncall/push-all', {
       method: 'POST',
       body: JSON.stringify(filters || {}),
+    });
+  },
+
+  // Import
+  async uploadImportFile(file: File): Promise<ApiResponse<ImportUploadResult>> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/import/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Upload failed');
+    }
+    return data;
+  },
+
+  async getImportFields(): Promise<ApiResponse<ImportFieldsResponse>> {
+    return request('/import/fields');
+  },
+
+  async previewImport(
+    fileId: string,
+    columnMapping: Record<string, string>,
+    limit?: number
+  ): Promise<ApiResponse<ImportPreviewResult>> {
+    return request('/import/preview', {
+      method: 'POST',
+      body: JSON.stringify({ fileId, columnMapping, limit }),
+    });
+  },
+
+  async executeImport(config: ImportConfig): Promise<ApiResponse<ImportResult>> {
+    return request('/import/execute', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  },
+
+  getImportTemplateUrl(format: 'csv' | 'xlsx'): string {
+    return `${API_BASE}/import/template/${format}`;
+  },
+
+  // Analytics
+  async getAnalyticsOverview(): Promise<ApiResponse<AnalyticsOverview>> {
+    return request('/analytics/overview');
+  },
+
+  async getAnalyticsTimeline(
+    days?: number,
+    groupBy?: 'day' | 'week' | 'month'
+  ): Promise<ApiResponse<{ timeline: TimelineData[]; startDate: string; endDate: string; groupBy: string }>> {
+    const qs = buildQueryString({ days, groupBy });
+    return request(`/analytics/timeline${qs}`);
+  },
+
+  async getAnalyticsSources(): Promise<ApiResponse<{ sources: SourceMetrics[] }>> {
+    return request('/analytics/sources');
+  },
+
+  async getAnalyticsActivity(days?: number): Promise<ApiResponse<{ activity: TimelineData[]; days: number }>> {
+    const qs = buildQueryString({ days });
+    return request(`/analytics/activity${qs}`);
+  },
+
+  // Enrichment
+  async getEnrichmentStatus(): Promise<ApiResponse<{
+    totalLeads: number;
+    withEmail: number;
+    withoutEmail: number;
+    withWebsite: number;
+    enrichable: number;
+  }>> {
+    return request('/enrichment/status');
+  },
+
+  async enrichLead(leadId: string): Promise<ApiResponse<{
+    leadId: string;
+    success: boolean;
+    email?: string;
+    confidence?: number;
+    error?: string;
+  }>> {
+    return request(`/enrichment/lead/${leadId}`, {
+      method: 'POST',
+    });
+  },
+
+  async enrichBatch(leadIds: string[]): Promise<ApiResponse<{
+    stats: {
+      total: number;
+      enriched: number;
+      skipped: number;
+      failed: number;
+      alreadyHadEmail: number;
+      noWebsite: number;
+    };
+    results: Array<{
+      leadId: string;
+      success: boolean;
+      email?: string;
+      error?: string;
+    }>;
+  }>> {
+    return request('/enrichment/batch', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds }),
+    });
+  },
+
+  async enrichAll(options?: {
+    trade?: string;
+    source?: string;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    stats: {
+      total: number;
+      enriched: number;
+      skipped: number;
+      failed: number;
+      alreadyHadEmail: number;
+      noWebsite: number;
+    };
+    results: Array<{
+      leadId: string;
+      success: boolean;
+      email?: string;
+      error?: string;
+    }>;
+  }>> {
+    return request('/enrichment/all', {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
     });
   },
 };
