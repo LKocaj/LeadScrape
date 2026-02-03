@@ -245,3 +245,103 @@ export async function exportToCsv(
   logger.info(`Successfully exported ${leads.length} leads to ${finalPath}`);
   return { path: finalPath, count: leads.length };
 }
+
+/**
+ * Export to Instantly-compatible CSV format
+ * Instantly requires: email (required), first_name, last_name, company_name, phone, website
+ * Custom variables can be added as custom1, custom2, etc.
+ */
+export async function exportToInstantly(
+  outputPath?: string,
+  filters?: LeadFilters
+): Promise<{ path: string; count: number; skipped: number }> {
+  const finalPath = outputPath ?? getDefaultOutputPath().replace('.xlsx', '-instantly.csv');
+
+  // Ensure directory exists
+  const dir = dirname(finalPath);
+  if (!existsSync(dir)) {
+    await mkdir(dir, { recursive: true });
+  }
+
+  // Get leads - only those with email addresses
+  const allLeads = findLeads(filters);
+  const leads = allLeads.filter((lead) => lead.email && lead.email.trim().length > 0);
+  const skipped = allLeads.length - leads.length;
+
+  if (leads.length === 0) {
+    logger.info('No leads with email addresses to export');
+    return { path: finalPath, count: 0, skipped };
+  }
+
+  logger.info(`Exporting ${leads.length} leads to Instantly format (skipped ${skipped} without email)`);
+
+  // Instantly CSV headers
+  const instantlyHeaders = [
+    'email',
+    'first_name',
+    'last_name',
+    'company_name',
+    'phone',
+    'website',
+    'city',
+    'state',
+    'trade',        // custom variable {{trade}}
+    'source',       // custom variable {{source}}
+    'rating',       // custom variable {{rating}}
+  ];
+
+  const instantlyRows = leads.map((lead) => {
+    // Try to split contact name into first/last
+    const nameParts = splitName(lead.contactName);
+
+    return [
+      lead.email ?? '',
+      nameParts.firstName,
+      nameParts.lastName,
+      lead.companyName,
+      formatPhoneDisplay(lead.phone),
+      lead.website ?? '',
+      lead.city ?? '',
+      lead.state ?? '',
+      lead.trade,
+      lead.source,
+      lead.rating?.toString() ?? '',
+    ]
+      .map((value) => {
+        // Escape quotes and wrap if contains comma/quote/newline
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      })
+      .join(',');
+  });
+
+  const instantlyCsv = [instantlyHeaders.join(','), ...instantlyRows].join('\n');
+
+  // Write file
+  const { writeFile } = await import('fs/promises');
+  await writeFile(finalPath, instantlyCsv, 'utf-8');
+
+  logger.info(`Successfully exported ${leads.length} leads to Instantly format at ${finalPath}`);
+  return { path: finalPath, count: leads.length, skipped };
+}
+
+/**
+ * Split a full name into first and last name
+ */
+function splitName(fullName?: string): { firstName: string; lastName: string } {
+  if (!fullName || fullName.trim().length === 0) {
+    return { firstName: '', lastName: '' };
+  }
+
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0] ?? '', lastName: '' };
+  }
+
+  // First word is first name, rest is last name
+  const firstName = parts[0] ?? '';
+  const lastName = parts.slice(1).join(' ');
+  return { firstName, lastName };
+}

@@ -12,8 +12,13 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-navy-900 text-white flex flex-col">
       <div className="p-6 border-b border-navy-800">
-        <h1 className="text-xl font-bold tracking-tight">LeadScrape</h1>
-        <p className="text-navy-400 text-sm mt-1">Lead Generation Tool</p>
+        <div className="flex items-center gap-3">
+          <img src="/oncall-logo.png" alt="OnCall" className="w-10 h-10 rounded-full" />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">LeadScrape</h1>
+            <p className="text-navy-400 text-sm">by OnCall Automation</p>
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 p-4">
@@ -39,7 +44,14 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-navy-800">
-        <p className="text-navy-500 text-xs">OnCall Automation</p>
+        <a
+          href="https://oncallautomation.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-navy-400 text-xs hover:text-white transition-colors"
+        >
+          oncallautomation.ai
+        </a>
       </div>
     </aside>
   );

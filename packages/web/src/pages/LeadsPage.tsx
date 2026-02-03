@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Trash2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, ExternalLink, ChevronLeft, ChevronRight, CheckSquare, Square, Download } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -44,6 +44,8 @@ export function LeadsPage() {
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<LeadFilters>({});
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -84,6 +86,41 @@ export function LeadsPage() {
       alert(err instanceof Error ? err.message : 'Failed to delete');
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === leads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(leads.map(l => l.id)));
+    }
+  };
+
+  const handleExportInstantly = async () => {
+    setExporting(true);
+    try {
+      const result = await api.exportInstantly(filters);
+      const skippedMsg = result.data.skipped > 0 ? ` (${result.data.skipped} skipped - no email)` : '';
+      alert(`Exported ${result.data.count} leads to Instantly format${skippedMsg}`);
+      // Trigger download
+      window.location.href = result.data.downloadUrl;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -138,6 +175,28 @@ export function LeadsPage() {
         </div>
       </Card>
 
+      {/* Bulk Actions */}
+      {leads.length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-navy-600">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${leads.length} leads shown`}
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleExportInstantly}
+              disabled={exporting}
+            >
+              {exporting ? <Spinner size="sm" /> : <Download size={16} />}
+              Export to Instantly
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card padding="none">
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -157,6 +216,11 @@ export function LeadsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-900 text-white text-left text-sm">
+                    <th className="px-4 py-3 font-semibold w-10">
+                      <button onClick={toggleSelectAll} className="text-white hover:text-oncall-300">
+                        {selectedIds.size === leads.length ? <CheckSquare size={18} /> : <Square size={18} />}
+                      </button>
+                    </th>
                     <th className="px-4 py-3 font-semibold">Company</th>
                     <th className="px-4 py-3 font-semibold">Contact</th>
                     <th className="px-4 py-3 font-semibold">Email</th>
@@ -169,7 +233,12 @@ export function LeadsPage() {
                 </thead>
                 <tbody>
                   {leads.map((lead) => (
-                    <tr key={lead.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <tr key={lead.id} className={`border-b border-gray-200 hover:bg-gray-50 ${selectedIds.has(lead.id) ? 'bg-oncall-50' : ''}`}>
+                      <td className="px-4 py-3">
+                        <button onClick={() => toggleSelect(lead.id)} className="text-navy-500 hover:text-oncall-600">
+                          {selectedIds.has(lead.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                        </button>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-navy-900">{lead.companyName}</div>
                         {lead.city && lead.state && (

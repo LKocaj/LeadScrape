@@ -50,6 +50,11 @@ const envSchema = z.object({
 
   // Export
   EXPORT_PATH: z.string().default('./data/exports'),
+
+  // OnCall Integration
+  ONCALL_API_URL: z.string().optional(),
+  ONCALL_TENANT_ID: z.string().optional(),
+  ONCALL_API_KEY: z.string().optional(),
 });
 
 /**

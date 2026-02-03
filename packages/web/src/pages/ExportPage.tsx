@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Mail } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
@@ -34,10 +34,10 @@ const sourceOptions = [
 
 export function ExportPage() {
   const [filters, setFilters] = useState<LeadFilters>({});
-  const [format, setFormat] = useState<'xlsx' | 'csv'>('xlsx');
+  const [format, setFormat] = useState<'xlsx' | 'csv' | 'instantly'>('xlsx');
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [result, setResult] = useState<ExportResult | null>(null);
+  const [result, setResult] = useState<(ExportResult & { skipped?: number }) | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +66,14 @@ export function ExportPage() {
     setResult(null);
 
     try {
-      const res = format === 'xlsx' ? await api.exportXlsx(filters) : await api.exportCsv(filters);
+      let res;
+      if (format === 'xlsx') {
+        res = await api.exportXlsx(filters);
+      } else if (format === 'csv') {
+        res = await api.exportCsv(filters);
+      } else {
+        res = await api.exportInstantly(filters);
+      }
       setResult(res.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed');
@@ -151,6 +158,22 @@ export function ExportPage() {
               <p className="text-sm text-gray-500">Universal format</p>
             </div>
           </button>
+          <button
+            onClick={() => setFormat('instantly')}
+            className={`flex items-center gap-3 p-4 border-2 transition-colors ${
+              format === 'instantly'
+                ? 'border-oncall-600 bg-oncall-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Mail size={24} className={format === 'instantly' ? 'text-oncall-600' : 'text-gray-500'} />
+            <div className="text-left">
+              <p className={`font-medium ${format === 'instantly' ? 'text-oncall-600' : 'text-gray-700'}`}>
+                Instantly (.csv)
+              </p>
+              <p className="text-sm text-gray-500">Cold email campaigns</p>
+            </div>
+          </button>
         </div>
       </Card>
 
@@ -194,6 +217,11 @@ export function ExportPage() {
               <p className="text-green-600 mt-1">
                 {result.count} leads exported to {result.filename}
               </p>
+              {result.skipped !== undefined && result.skipped > 0 && (
+                <p className="text-amber-600 text-sm mt-1">
+                  {result.skipped} leads skipped (no email address)
+                </p>
+              )}
             </div>
             <a
               href={result.downloadUrl}

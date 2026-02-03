@@ -97,6 +97,13 @@ export const api = {
     });
   },
 
+  async exportInstantly(filters?: LeadFilters): Promise<ApiResponse<ExportResult & { skipped: number }>> {
+    return request('/export/instantly', {
+      method: 'POST',
+      body: JSON.stringify({ filters }),
+    });
+  },
+
   async getExportPreview(filters?: LeadFilters): Promise<ApiResponse<{ count: number }>> {
     const qs = buildQueryString(filters || {});
     return request(`/export/preview${qs}`);
@@ -105,5 +112,30 @@ export const api = {
   // Enums
   async getEnums(): Promise<ApiResponse<{ trades: Trade[]; sources: LeadSource[]; statuses: LeadStatus[] }>> {
     return request('/enums');
+  },
+
+  // OnCall Integration
+  async getOnCallStatus(): Promise<ApiResponse<{ connected: boolean; message: string }>> {
+    return request('/oncall/status');
+  },
+
+  async pushToOnCall(leadId: string): Promise<ApiResponse<{ success: boolean; leadId?: string; error?: string }>> {
+    return request(`/oncall/push/${leadId}`, {
+      method: 'POST',
+    });
+  },
+
+  async pushBulkToOnCall(leadIds: string[]): Promise<ApiResponse<{ total: number; success: number; failed: number }>> {
+    return request('/oncall/push-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds }),
+    });
+  },
+
+  async pushAllToOnCall(filters?: { status?: string; trade?: string; source?: string }): Promise<ApiResponse<{ total: number; success: number; failed: number }>> {
+    return request('/oncall/push-all', {
+      method: 'POST',
+      body: JSON.stringify(filters || {}),
+    });
   },
 };

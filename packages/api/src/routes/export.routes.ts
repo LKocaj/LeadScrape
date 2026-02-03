@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exportToXlsx, exportToCsv } from '../../../../src/export/xlsx.exporter.js';
+import { exportToXlsx, exportToCsv, exportToInstantly } from '../../../../src/export/xlsx.exporter.js';
 import { findLeads } from '../../../../src/storage/lead.repository.js';
 import type { LeadFilters, LeadStatus, Trade, LeadSource } from '../../../../src/types/index.js';
 
@@ -85,6 +85,36 @@ exportRouter.post('/csv', async (req, res): Promise<void> => {
     data: {
       filename,
       count: leads.length,
+      downloadUrl: `/api/export/download/${filename}`,
+    },
+  });
+});
+
+// POST /api/export/instantly - Export to Instantly-compatible CSV
+exportRouter.post('/instantly', async (req, res): Promise<void> => {
+  const filters = parseFilters(req.body.filters || {});
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const filename = `leads-instantly-${timestamp}.csv`;
+  const exportPath = path.join(__dirname, '../../../../../data/exports', filename);
+
+  const result = await exportToInstantly(exportPath, filters);
+
+  if (result.count === 0) {
+    res.status(400).json({
+      success: false,
+      error: 'No leads with email addresses match the specified filters',
+      skipped: result.skipped,
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      filename,
+      count: result.count,
+      skipped: result.skipped,
       downloadUrl: `/api/export/download/${filename}`,
     },
   });

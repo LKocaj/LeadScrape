@@ -22,7 +22,7 @@
   }
 
   .btn-primary {
-    @apply bg-navy-900 text-white hover:bg-navy-800;
+    @apply bg-oncall-600 text-white hover:bg-oncall-700;
   }
 
   .btn-secondary {
@@ -42,11 +42,11 @@
   }
 
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 bg-white focus:border-navy-500 focus:ring-1 focus:ring-navy-500 outline-none transition-colors;
+    @apply w-full px-3 py-2 border border-gray-300 bg-white focus:border-oncall-500 focus:ring-1 focus:ring-oncall-500 outline-none transition-colors;
   }
 
   .select {
-    @apply w-full px-3 py-2 border border-gray-300 bg-white focus:border-navy-500 focus:ring-1 focus:ring-navy-500 outline-none transition-colors appearance-none cursor-pointer;
+    @apply w-full px-3 py-2 border border-gray-300 bg-white focus:border-oncall-500 focus:ring-1 focus:ring-oncall-500 outline-none transition-colors appearance-none cursor-pointer;
   }
 
   .label {

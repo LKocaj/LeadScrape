@@ -4,6 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        oncall: {
+          50: '#e6f4ff',
+          100: '#bae0ff',
+          200: '#8dcaff',
+          300: '#5eb3ff',
+          400: '#3a9eff',
+          500: '#1e88e5',
+          600: '#1976d2',
+          700: '#1565c0',
+          800: '#0d47a1',
+          900: '#0a3d8f',
+        },
         navy: {
           50: '#f0f4f8',
           100: '#d9e2ec',

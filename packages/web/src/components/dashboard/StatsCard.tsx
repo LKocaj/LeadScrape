@@ -18,7 +18,7 @@ export function StatsCard({ title, value, icon, subtitle }: StatsCardProps) {
           {subtitle && <p className="text-sm text-navy-500 mt-1">{subtitle}</p>}
         </div>
         {icon && (
-          <div className="p-3 bg-navy-100 text-navy-600">{icon}</div>
+          <div className="p-3 bg-oncall-100 text-oncall-600">{icon}</div>
         )}
       </div>
     </Card>
