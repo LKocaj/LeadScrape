@@ -176,6 +176,11 @@ export function LeadsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [enrichmentProgress, setEnrichmentProgress] = useState<{
+    current: number;
+    total: number;
+    enrichedSoFar: number;
+  } | null>(null);
   const [enrichmentStatus, setEnrichmentStatus] = useState<{
     totalLeads: number;
     withEmail: number;
@@ -305,8 +310,19 @@ export function LeadsPage() {
         noWebsite: 0,
       };
 
+      // Initialize progress
+      setEnrichmentProgress({ current: 0, total: leadIds.length, enrichedSoFar: 0 });
+
       for (let i = 0; i < leadIds.length; i += BATCH_SIZE) {
         const batch = leadIds.slice(i, i + BATCH_SIZE);
+
+        // Update progress before batch starts
+        setEnrichmentProgress({
+          current: i,
+          total: leadIds.length,
+          enrichedSoFar: totalStats.enriched,
+        });
+
         const result = await api.enrichBatch(batch);
         const { stats } = result.data;
 
@@ -316,6 +332,13 @@ export function LeadsPage() {
         totalStats.failed += stats.failed;
         totalStats.alreadyHadEmail += stats.alreadyHadEmail;
         totalStats.noWebsite += stats.noWebsite;
+
+        // Update progress after batch completes
+        setEnrichmentProgress({
+          current: Math.min(i + BATCH_SIZE, leadIds.length),
+          total: leadIds.length,
+          enrichedSoFar: totalStats.enriched,
+        });
       }
 
       alert(
@@ -327,13 +350,14 @@ export function LeadsPage() {
       );
 
       // Refresh leads list and enrichment status
-      fetchLeads();
-      fetchEnrichmentStatus();
+      await fetchLeads();
+      await fetchEnrichmentStatus();
       setSelectedIds(new Set());
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Enrichment failed');
     } finally {
       setEnriching(false);
+      setEnrichmentProgress(null);
     }
   };
 
@@ -406,7 +430,7 @@ export function LeadsPage() {
               <span className="text-sm text-navy-600">
                 {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${leads.length} leads shown`}
               </span>
-              {enrichmentStatus && enrichmentStatus.enrichable > 0 && (
+              {!enriching && enrichmentStatus && enrichmentStatus.enrichable > 0 && (
                 <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
                   <Mail size={12} className="inline mr-1" />
                   {enrichmentStatus.enrichable} leads can be enriched
@@ -434,6 +458,34 @@ export function LeadsPage() {
               </Button>
             </div>
           </div>
+
+          {/* Enrichment Progress Bar */}
+          {enriching && enrichmentProgress && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-navy-600">
+                  <Sparkles size={14} className="inline mr-1 text-amber-500" />
+                  Enriching leads...
+                </span>
+                <span className="text-navy-500">
+                  {enrichmentProgress.current} / {enrichmentProgress.total} processed
+                  {enrichmentProgress.enrichedSoFar > 0 && (
+                    <span className="text-green-600 ml-2">
+                      ({enrichmentProgress.enrichedSoFar} emails found)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 h-2 overflow-hidden">
+                <div
+                  className="bg-oncall-500 h-2 transition-all duration-300"
+                  style={{
+                    width: `${Math.round((enrichmentProgress.current / enrichmentProgress.total) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
